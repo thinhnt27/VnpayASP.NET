@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Net.Http;
 using System.Security.Claims;
 using TestVnPay.DTOs;
+using TestVnPay.DTOs.Response;
 using TestVnPay.Services;
 
 namespace TestVnPay.Controllers
@@ -45,6 +46,14 @@ namespace TestVnPay.Controllers
                 // Use the local IP address
                 return httpContext?.Connection?.LocalIpAddress?.ToString();
             }
+        }
+
+        //Check payment response
+        [HttpGet]
+        public IActionResult CheckPaymentResponse([FromQuery] VnpayPayResponse vnpayResponse)
+        {
+            var result = _vnpayService.CheckPaymentResponse(vnpayResponse);
+            return Ok(result);
         }
     }
 }

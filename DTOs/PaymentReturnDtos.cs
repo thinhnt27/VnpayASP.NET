@@ -8,7 +8,7 @@ namespace TestVnPay.DTOs
 {
     public class PaymentReturnDtos
     {
-        public string? PaymentId { get; set; }
+        public int? PaymentId { get; set; }
         /// <summary>
         /// 00: Success
         /// 99: Unknown

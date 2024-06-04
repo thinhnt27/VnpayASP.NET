@@ -137,13 +137,14 @@ namespace TestVnPay.Services
         public string CreatePayment(PaymentDtos paymentDtos, string? IpAddress, string? UserId)
         {
             var payment = _mapper.Map<Payments>(paymentDtos);
+            payment.PaymentStatus = "0";
             var resultPayment = _context.Payments.Add(payment);
             var result = _context.SaveChanges();
             var paymentUrl = string.Empty;
             var test = _vnpayConfig;
             if (result > 0)
             {
-                
+
                 _vnpayPayRequest = new VnpayPayRequest(_vnpayConfig.Version,
                 _vnpayConfig.TmnCode, DateTime.Now, "127.0.0.1" ?? string.Empty, paymentDtos.RequiredAmount ?? 0, paymentDtos.PaymentCurrency ?? string.Empty,
                                 "other", paymentDtos.PaymentContent ?? string.Empty, _vnpayConfig.ReturnUrl, resultPayment.Entity.PaymentId!.ToString() ?? string.Empty);
@@ -151,6 +152,64 @@ namespace TestVnPay.Services
                 return paymentUrl;
             }
             return "Lỗi rồi";
+        }
+
+        //Check payment response from VNPAY
+        public string CheckPaymentResponse(VnpayPayResponse vnpayPayResponse)
+        {
+            if (vnpayPayResponse != null)
+            {
+
+                _vnpayPayResponse = vnpayPayResponse;
+                if (IsValidSignature(_vnpayConfig.HashSecret))
+                {
+                    var payment = _context.Payments.Find(int.Parse(_vnpayPayResponse.vnp_TxnRef));
+
+                    if (payment != null)
+                    {
+                        if (payment.RequiredAmount == (vnpayPayResponse.vnp_Amount / 100))
+                        {
+                            if (payment.PaymentStatus == "0")
+                            {
+                                if (vnpayPayResponse.vnp_ResponseCode == "00" && vnpayPayResponse.vnp_TransactionStatus == "00")
+                                {
+                                    payment.PaymentStatus = "1";
+                                    _context.Payments.Update(payment);
+                                    var result = _context.SaveChanges();
+                                    return "Confirm Success"; // "RspCode":"00"
+                                }
+                                else
+                                {
+                                    payment.PaymentStatus = "2";
+                                    _context.Payments.Update(payment);
+                                    var result = _context.SaveChanges();
+                                    return "Có lỗi xảy ra trong quá trình xử lý";
+                                }
+                            }
+                            else
+                            {
+                                return "Payment already confirmed"; // "RspCode":"02"
+                            }
+                        }
+                        else
+                        {
+                            return "Invalid amount"; // "RspCode":"04"
+                        }
+                    }
+                    else
+                    {
+                        return "Payment not found"; // "RspCode":"01"
+                    }
+                }
+                else
+                {
+                    return "Invalid signature"; // "RspCode":"97"
+                }
+            }
+            else
+            {
+                return "Input data required"; // "RspCode":"99"
+            }
         }
     }
 }
